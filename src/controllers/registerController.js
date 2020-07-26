@@ -1,6 +1,8 @@
 const User = require("../models/user");
 const Becrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+
+const nodemailer = require("nodemailer");
 const { Response, ResponseError } = require("../utils/response");
 require("dotenv").config();
 
@@ -38,8 +40,25 @@ exports.registerUser = async (request) => {
     data.token = jwt.sign(payload, process.env.SECRETKEY);
 
     console.log(data.token);
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: { user: process.env.EMAIL, pass: process.env.PASSWORD },
+    });
+    const mailOptions = {
+      from: "basseyprinceu@gmail.com",
+      to: newUser.email,
+      subject: "Account Verification Token",
+      text:
+        "Hello,\n\n" +
+        "Please verify your account by clicking the link: \nhttp://" +
+        request.headers.host +
+        "/confirmation/" +
+        token.token +
+        ".\n",
+    };
+    transporter.sendMail(mailOptions)
 
-    return new Response(200, data);
+    return new Response(200, {responseMessage:data, mail:Sent});
   } else {
     throw new ResponseError(400, "User already exists");
   }
