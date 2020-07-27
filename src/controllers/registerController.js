@@ -2,14 +2,14 @@ const User = require("../models/user");
 const Becrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 
-const nodemailer = require("nodemailer");
+const nodemailer = require("../controllers/nodemailer");
 const { Response, ResponseError } = require("../utils/response");
 require("dotenv").config();
 
 exports.registerUser = async (request) => {
   //check if user exist
   let existingUser = await User.findOne({ email: request.body.email });
-  console.log(existingUser);
+ // console.log(existingUser);
   let { name, email, password, username ,age } = request.body;
   //hash the password
   password = Becrypt.hashSync(request.body.password, 10);
@@ -29,7 +29,7 @@ exports.registerUser = async (request) => {
     delete data.password;
     console.log(data._id)
     //create a jwt payload
-    const payload = {
+    var payload = {
       id:data._id,
       name: data.name,
       email: data.email,
@@ -39,30 +39,29 @@ exports.registerUser = async (request) => {
 
     data.token = jwt.sign(payload, process.env.SECRETKEY);
 
-    console.log(data.token);
-    const transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: { user: process.env.EMAIL, pass: process.env.PASSWORD },
-    });
-    const mailOptions = {
-      from: "basseyprinceu@gmail.com",
-      to: newUser.email,
-      subject: "Account Verification Token",
-      text:
-        "Hello,\n\n" +
-        "Please verify your account by clicking the link: \nhttp://" +
-        request.headers.host +
-        "/confirmation/" +
-        token.token +
-        ".\n",
-    };
-    transporter.sendMail(mailOptions)
+    nodemailer(newUser.email,"Email Verification", "Hello,\n\n" +
+    "Please verify your account by clicking the link: \nhttp://" +
+    request.headers.host +
+    "/confirmation/" +
+    data.token+
+    ".\n")
 
-    return new Response(200, {responseMessage:data, mail:Sent});
-  } else {
-    throw new ResponseError(400, "User already exists");
-  }
+    console.log(data.token);
+
+    
+    return new Response(200, {responseMessage:data , nodemailer});
+    } else {
+      throw new ResponseError(400, "User already exists");
+    }
+  
 };
+
+exports.confirmation = async(request)=>{
+  const token = request.params.token
+  const payload = jwt.verify(token,process.env.SECRETKEY)
+  let confirmUser = await User.findOne({_id:payload.id , email:payload.email})
+  if(confirmUser) return new Response(200,'Verified')
+}
 
 exports.getRegisteruser = async (request) => {
   try {
